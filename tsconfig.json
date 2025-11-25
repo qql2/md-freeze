@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "target": "es2016",
+        "lib": [
+            "es6",
+            "dom"
+        ],
+        "module": "commonjs",
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "outFile": "./main.js",
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "skipLibCheck": true
+    },
+    "include": [
+        "src/packageName.ts"
+    ]
+}

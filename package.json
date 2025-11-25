@@ -1,0 +1,16 @@
+{
+  "name": "",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+  	"dev": "node esbuild.config.mjs",
+  	"build": "tsc -skipLibCheck && node esbuild.config.mjs production",
+  	"pub": "npm run build & npm publish"
+  },
+  "author": "qql2",
+  "types": "main.d.ts",
+  "devDependencies":{
+    "esbuild": "0.21.5"
+  }
+}
