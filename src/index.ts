@@ -162,6 +162,45 @@ async function processEmbedNode(
   // 检查循环引用
   if (hasCycle(pathStack, filePath)) {
     console.warn(`Circular reference detected: ${filePath}`);
+    // 移除循环引用的嵌入节点
+    if (parent && parentArray && index !== -1) {
+      const targetArray =
+        parentArray === "children" ? parent.children : parent.content;
+      if (targetArray) {
+        // 检查父节点是否是 paragraph，如果是，需要替换整个 paragraph
+        const isInParagraph = parent.type === "paragraph";
+
+        if (isInParagraph) {
+          // 如果嵌入在 paragraph 中，移除整个 paragraph
+          const paragraphIndex = path.findIndex((n) => n === parent);
+          if (paragraphIndex !== -1 && paragraphIndex > 0) {
+            const paragraphParent = path[paragraphIndex - 1];
+            const paragraphParentArray = paragraphParent.children?.includes(
+              parent
+            )
+              ? "children"
+              : paragraphParent.content?.includes(parent)
+              ? "content"
+              : null;
+            const paragraphParentArrayValue =
+              paragraphParentArray === "children"
+                ? paragraphParent.children
+                : paragraphParent.content;
+            if (paragraphParentArrayValue) {
+              const paragraphIdx = paragraphParentArrayValue.indexOf(parent);
+              if (paragraphIdx !== -1) {
+                paragraphParentArrayValue.splice(paragraphIdx, 1);
+                return true;
+              }
+            }
+          }
+        } else {
+          // 正常情况：移除嵌入节点
+          targetArray.splice(index, 1);
+          return true;
+        }
+      }
+    }
     return false;
   }
 
