@@ -89,8 +89,21 @@ function convertHeadingToList(headingNode: HierarchyNode): void {
   });
 }
 
+// 块级节点类型，这些节点不应该被当作 heading 的内联内容
+const BLOCK_TYPES = new Set([
+  "paragraph",
+  "heading",
+  "list",
+  "listItem",
+  "blockquote",
+  "code",
+  "table",
+  "thematicBreak",
+  "html",
+]);
+
 /**
- * 提取 heading 节点的文本内容
+ * 提取 heading 节点的文本内容（只提取内联内容，不包括块级子节点）
  * @param headingNode heading 节点
  * @returns 文本内容
  */
@@ -104,7 +117,8 @@ function extractHeadingText(headingNode: HierarchyNode): string {
   function extractText(node: HierarchyNode): void {
     if (node.type === "text") {
       textParts.push(node.value || "");
-    } else if (node.children) {
+    } else if (!BLOCK_TYPES.has(node.type) && node.children) {
+      // 只递归处理内联节点（如 emphasis, strong, link 等）
       for (const child of node.children) {
         extractText(child);
       }
@@ -117,4 +131,3 @@ function extractHeadingText(headingNode: HierarchyNode): string {
 
   return textParts.join("");
 }
-

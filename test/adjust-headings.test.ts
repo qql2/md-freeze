@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { adjustHeadingDepths } from "../src/adjust-headings";
 import { HierarchyNode } from "../src/types";
-import { toHierarchy, unHierarchy } from "hierarchy-mdast";
 
 // 辅助函数：创建简单的节点
 function createHeadingNode(
@@ -116,7 +115,7 @@ test("adjustHeadingDepths - 转换后的列表应该包含原标题文本", () =
   const listItem = heading.children?.[0];
   assert.notStrictEqual(listItem, undefined);
   assert.strictEqual(listItem?.type, "listItem");
-  
+
   // 检查列表项的第一个子节点是段落，包含原标题文本
   const paragraph = listItem?.children?.[0];
   assert.strictEqual(paragraph?.type, "paragraph");
@@ -138,11 +137,23 @@ test("adjustHeadingDepths - 转换后的列表应该保留原内容", () => {
   assert.strictEqual(heading.type, "list");
   const listItem = heading.children?.[0];
   assert.notStrictEqual(listItem, undefined);
-  
-  // 应该包含标题文本的段落和原内容
-  assert.strictEqual(listItem?.children?.length, 2);
+
+  // 应该包含：标题文本的段落、原标题的文本节点、原段落节点
+  // 注意：convertHeadingToList 会保留所有 headingChildren，包括文本节点
+  assert.strictEqual(listItem?.children?.length, 3);
   assert.strictEqual(listItem?.children?.[0].type, "paragraph");
-  assert.strictEqual(listItem?.children?.[1].type, "paragraph");
+  assert.strictEqual(listItem?.children?.[1].type, "text"); // 原标题的文本节点
+  assert.strictEqual(listItem?.children?.[2].type, "paragraph"); // 原段落节点
+
+  // 验证第一个段落包含标题文本
+  const titleParagraph = listItem?.children?.[0];
+  assert.strictEqual(titleParagraph?.children?.[0]?.type, "text");
+  assert.strictEqual(titleParagraph?.children?.[0]?.value, "Heading 6");
+
+  // 验证原段落内容被保留
+  const contentParagraph = listItem?.children?.[2];
+  assert.strictEqual(contentParagraph?.children?.[0]?.type, "text");
+  assert.strictEqual(contentParagraph?.children?.[0]?.value, "Content");
 });
 
 test("adjustHeadingDepths - 非标题节点不应该被修改", () => {
@@ -169,4 +180,3 @@ test("adjustHeadingDepths - 空节点应该正常处理", () => {
   adjustHeadingDepths(root, 0);
   assert.deepStrictEqual(root.children, []);
 });
-
