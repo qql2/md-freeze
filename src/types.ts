@@ -36,10 +36,13 @@ export interface FreezeOptions {
 
 /**
  * Hierarchy 节点类型（由 hierarchy-mdast 生成）
+ * heading 节点有 content 属性，包含该 heading 下的所有内容
  */
 export interface HierarchyNode {
   type: string;
+  depth?: number; // heading 节点的深度
   children?: HierarchyNode[];
+  content?: HierarchyNode[]; // heading 节点的内容
   [key: string]: any;
 }
 
@@ -47,4 +50,3 @@ export interface HierarchyNode {
  * 路径栈，用于循环检测
  */
 export type PathStack = string[];
-

@@ -11,8 +11,10 @@ import {
 } from "./types";
 import { hasCycle, pushPath } from "./cycle-detection";
 import {
-  findParentHeadingFromParent,
+  findNearestHeading,
   getContextHeadingDepth,
+  isInListItem,
+  getListItemParent,
 } from "./detect-context";
 import { adjustHeadingDepths } from "./adjust-headings";
 
@@ -40,6 +42,7 @@ async function processTree(
   options: FreezeOptions,
   pathStack: PathStack
 ): Promise<void> {
+  let currentTree = tree;
   let hasEmbedNodes = true;
   let iterations = 0;
   const maxIterations = 100; // 防止无限循环
@@ -47,94 +50,118 @@ async function processTree(
   // 循环处理，直到没有 obsidianEmbed 节点
   while (hasEmbedNodes && iterations < maxIterations) {
     iterations++;
+    hasEmbedNodes = false;
 
-    // 1. 在 mdast 上直接查找所有 obsidianEmbed 节点（因为 toHierarchy 可能不支持 obsidianEmbed）
+    // 1. 转换为 hierarchy 结构
+    const hierarchyTree = toHierarchy(JSON.parse(JSON.stringify(currentTree)));
+
+    // 2. 直接在 hierarchy 结构上遍历查找所有 obsidianEmbed 节点
     const embedNodes: Array<{
-      node: any;
-      parent: any;
+      node: HierarchyNode;
+      path: HierarchyNode[];
+      parent: HierarchyNode | null;
+      parentArray: "children" | "content" | null;
       index: number;
     }> = [];
 
-    function collectEmbedNodes(node: any, parent: any, index: number): void {
+    function collectEmbedNodes(
+      node: HierarchyNode,
+      path: HierarchyNode[] = [],
+      parentArray: "children" | "content" | null = null,
+      index: number = -1
+    ): void {
       if (node.type === "obsidianEmbed") {
-        embedNodes.push({ node, parent, index });
+        const parent = path.length > 0 ? path[path.length - 1] : null;
+        embedNodes.push({ node, path, parent, parentArray, index });
       }
 
+      // 遍历 children
       if (node.children) {
-        node.children.forEach((child: any, idx: number) => {
-          collectEmbedNodes(child, node, idx);
+        node.children.forEach((child, idx) => {
+          collectEmbedNodes(child, [...path, node], "children", idx);
+        });
+      }
+
+      // 遍历 content（heading 节点的内容）
+      if (node.content) {
+        node.content.forEach((child, idx) => {
+          collectEmbedNodes(child, [...path, node], "content", idx);
         });
       }
     }
 
-    collectEmbedNodes(tree, null, -1);
+    collectEmbedNodes(hierarchyTree, []);
 
     // 如果没有找到嵌入节点，退出循环
     if (embedNodes.length === 0) {
-      hasEmbedNodes = false;
       break;
     }
 
-    // 2. 转换为 hierarchy 结构以进行上下文检测
-    const hierarchyTree = toHierarchy(JSON.parse(JSON.stringify(tree)));
-
     // 3. 处理每个嵌入节点（从后往前处理，避免索引变化问题）
     for (let i = embedNodes.length - 1; i >= 0; i--) {
-      const { node, parent } = embedNodes[i];
-      const processed = await processEmbedNode(
-        node as ObsidianEmbedNode,
+      const {
+        node: embedNode,
+        path,
         parent,
-        tree,
+        parentArray,
+        index,
+      } = embedNodes[i];
+      const processed = await processEmbedNode(
+        embedNode,
+        path,
+        parent,
+        parentArray,
+        index,
         hierarchyTree,
         options,
         pathStack
       );
 
-      // 如果节点没有被处理（比如循环检测跳过），需要移除它
-      if (!processed && parent) {
-        const embedIndex = parent.children?.indexOf(node);
-        if (embedIndex !== undefined && embedIndex !== -1 && parent.children) {
-          parent.children.splice(embedIndex, 1);
-        }
-      } else if (!processed && !parent) {
-        // 如果节点在根节点下且没有被处理，需要移除
-        const embedIndex = tree.children?.indexOf(node);
-        if (embedIndex !== undefined && embedIndex !== -1 && tree.children) {
-          tree.children.splice(embedIndex, 1);
-        }
+      if (processed) {
+        hasEmbedNodes = true; // 标记需要继续处理（可能有嵌套嵌入）
       }
     }
+
+    // 4. 还原为 mdast
+    currentTree = unHierarchy(hierarchyTree) as Root;
   }
 
-  if (iterations >= maxIterations) {
-    console.warn("警告: 达到最大迭代次数，可能存在循环嵌套");
-  }
+  // 更新原始 tree
+  tree.children = currentTree.children;
 }
 
 /**
  * 处理单个嵌入节点
- * @param embedNode 嵌入节点
+ * @param embedNode hierarchy 中的嵌入节点
+ * @param path 节点路径
  * @param parent 父节点
- * @param hierarchyRoot hierarchy 根节点
+ * @param parentArray 父节点数组类型（children 或 content）
+ * @param index 在父节点数组中的索引
+ * @param hierarchyTree hierarchy 根节点
  * @param options 插件选项
  * @param pathStack 路径栈
- * @returns 是否成功处理了节点
+ * @returns 是否成功处理
  */
 async function processEmbedNode(
-  embedNode: any, // mdast 节点
-  parent: any, // mdast 父节点
-  tree: Root, // 完整的 mdast 树
-  hierarchyTree: HierarchyNode, // hierarchy 结构（用于上下文检测）
+  embedNode: HierarchyNode,
+  path: HierarchyNode[],
+  parent: HierarchyNode | null,
+  parentArray: "children" | "content" | null,
+  index: number,
+  hierarchyTree: HierarchyNode,
   options: FreezeOptions,
   pathStack: PathStack
 ): Promise<boolean> {
-  const filePath = embedNode.data.target;
+  // 获取文件路径
+  const filePath = embedNode.data?.target;
+  if (!filePath) {
+    console.warn("obsidianEmbed node missing target");
+    return false;
+  }
 
-  // 检查循环嵌套
+  // 检查循环引用
   if (hasCycle(pathStack, filePath)) {
-    console.warn(
-      `检测到循环嵌套，跳过文件: ${filePath}，路径栈: ${pathStack.join(" -> ")}`
-    );
+    console.warn(`Circular reference detected: ${filePath}`);
     return false;
   }
 
@@ -143,7 +170,10 @@ async function processEmbedNode(
 
   try {
     // 读取嵌入文件内容
-    const markdownContent = await Promise.resolve(options.readFile(embedNode));
+    const embedNodeMdast = embedNode as unknown as ObsidianEmbedNode;
+    const markdownContent = await Promise.resolve(
+      options.readFile(embedNodeMdast)
+    );
 
     // 解析嵌入内容
     const processor = remark().use(remarkObsidian);
@@ -153,239 +183,85 @@ async function processEmbedNode(
     // 递归处理嵌套嵌入
     await processTree(embeddedTree, options, newPathStack);
 
-    // 查找父节点在 hierarchy 中的对应节点（用于上下文检测）
-    let hierarchyParent: HierarchyNode | null = null;
-    if (parent) {
-      // 查找 parent 在 hierarchy 中的位置
-      function findHierarchyNode(
-        mdastNode: any,
-        hierarchyNode: HierarchyNode
-      ): HierarchyNode | null {
-        if (mdastNode === parent) {
-          return hierarchyNode;
-        }
-        if (mdastNode.children && hierarchyNode.children) {
-          for (let i = 0; i < mdastNode.children.length; i++) {
-            const mdastChild = mdastNode.children[i];
-            const hierarchyChild = hierarchyNode.children[i];
-            if (hierarchyChild) {
-              const found = findHierarchyNode(mdastChild, hierarchyChild);
-              if (found) return found;
-            }
-          }
-        }
-        return null;
-      }
-      hierarchyParent = findHierarchyNode(tree, hierarchyTree);
-    }
+    // 转换为 hierarchy 结构以调整标题层级
+    const embeddedHierarchy = toHierarchy(embeddedTree);
 
-    // 检查是否在 list-item 中（需要向上查找）
-    let inListItem = false;
-    let listItemParent: any = null;
+    // 查找上下文 heading
+    const parentHeading = findNearestHeading(path);
+    const contextDepth = getContextHeadingDepth(parentHeading);
 
-    // 向上查找 list-item 父节点
-    function findListItemParent(node: any, target: any, path: any[] = []): any {
-      if (node === target) {
-        // 在路径中查找 listItem
-        for (let i = path.length - 1; i >= 0; i--) {
-          if (path[i].type === "listItem") {
-            return path[i];
-          }
-        }
-        return null;
-      }
-      if (node.children) {
-        for (const child of node.children) {
-          const found = findListItemParent(child, target, [...path, node]);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
+    // 检查是否在 list-item 中
+    const inListItem = isInListItem(path);
+    const listItemParent = getListItemParent(path);
 
-    listItemParent = findListItemParent(tree, embedNode);
-    inListItem = listItemParent !== null;
-
-    if (inListItem && listItemParent) {
-      // 如果嵌入在 list-item 中，直接添加到 list-item.children（不调整标题）
-      if (!listItemParent.children) {
-        listItemParent.children = [];
-      }
-
-      // 找到包含 embedNode 的节点（可能是 paragraph 或其他）
-      let nodeToReplace: any = null;
-      let replaceIndex = -1;
-
-      function findNodeToReplace(
-        node: any,
-        target: any
-      ): { node: any; index: number } | null {
-        if (node.children) {
-          const index = node.children.indexOf(target);
-          if (index !== -1) {
-            return { node, index };
-          }
-          for (const child of node.children) {
-            const found = findNodeToReplace(child, target);
-            if (found) return found;
-          }
-        }
-        return null;
-      }
-
-      const found = findNodeToReplace(listItemParent, embedNode);
-      if (found) {
-        nodeToReplace = found.node;
-        replaceIndex = found.index;
-      }
-
-      if (nodeToReplace && replaceIndex !== -1) {
-        // 如果找到的节点是 paragraph 且只包含 embedNode，替换整个 paragraph
-        if (
-          nodeToReplace.type === "paragraph" &&
-          nodeToReplace.children.length === 1
-        ) {
-          const paragraphIndex = listItemParent.children.indexOf(nodeToReplace);
-          if (paragraphIndex !== -1) {
-            if (embeddedTree.children && embeddedTree.children.length > 0) {
-              listItemParent.children.splice(
-                paragraphIndex,
-                1,
-                ...embeddedTree.children
-              );
-            } else {
-              listItemParent.children.splice(paragraphIndex, 1);
-            }
-          }
-        } else {
-          // 其他情况，直接替换 embedNode
-          if (embeddedTree.children && embeddedTree.children.length > 0) {
-            nodeToReplace.children.splice(
-              replaceIndex,
-              1,
-              ...embeddedTree.children
-            );
-          } else {
-            nodeToReplace.children.splice(replaceIndex, 1);
-          }
-        }
-      }
-    } else {
-      // 不在 list-item 中，需要调整标题层级
-      const parentHeading = hierarchyParent
-        ? findParentHeadingFromParent(hierarchyParent, hierarchyTree)
-        : null;
-      const contextDepth = getContextHeadingDepth(parentHeading);
-
-      // 转换为 hierarchy 结构以进行调整标题层级
-      const embeddedHierarchy = toHierarchy(
-        JSON.parse(JSON.stringify(embeddedTree))
-      );
-
-      // 调整标题深度
+    if (!inListItem) {
+      // 调整标题层级（列表项中的嵌入不调整标题）
       adjustHeadingDepths(embeddedHierarchy, contextDepth);
+    }
 
-      // 还原为 mdast 以获取所有节点（包括非标题节点）
-      const adjustedTree = unHierarchy(embeddedHierarchy) as Root;
+    // 获取要插入的内容（hierarchy 结构）
+    // hierarchy-mdast 的结构：root.children 包含 heading 节点，heading.content 包含该 heading 下的内容
+    const contentToInsert: HierarchyNode[] = [];
 
-      // 使用调整后的树，如果为空则使用原始树
-      // 注意：需要手动调整 embeddedTree 中的标题深度，因为 unHierarchy 可能丢失非标题节点
-      let childrenToInsert =
-        adjustedTree.children && adjustedTree.children.length > 0
-          ? adjustedTree.children
-          : [];
+    if (embeddedHierarchy.children) {
+      contentToInsert.push(...embeddedHierarchy.children);
+    }
 
-      // 检查 adjustedTree 是否包含所有节点（包括非标题节点）
-      // 如果 adjustedTree.children 为空或只包含标题节点，使用原始树并手动调整标题
-      const hasNonHeadingNodes = childrenToInsert.some(
-        (node: any) => node.type !== "heading"
-      );
-      const originalHasNonHeadingNodes = embeddedTree.children?.some(
-        (node: any) => node.type !== "heading"
-      );
+    // 替换嵌入节点
+    if (parent && parentArray && index !== -1) {
+      const targetArray =
+        parentArray === "children" ? parent.children : parent.content;
+      if (targetArray) {
+        // 检查父节点是否是 paragraph，如果是，需要替换整个 paragraph
+        const isInParagraph = parent.type === "paragraph";
 
-      // 如果原始树有非标题节点，但 adjustedTree 没有，使用原始树
-      if (
-        originalHasNonHeadingNodes &&
-        !hasNonHeadingNodes &&
-        embeddedTree.children
-      ) {
-        // 直接调整 embeddedTree 中的标题深度
-        function adjustHeadingInMdast(nodes: any[]): void {
-          for (const node of nodes) {
-            if (node.type === "heading") {
-              const currentDepth = node.depth || 1;
-              const newDepth = currentDepth + contextDepth + 1;
-              if (newDepth > 6) {
-                // 转换为列表（简化处理，这里先跳过）
-                node.depth = 6;
-              } else {
-                node.depth = newDepth;
+        if (isInParagraph && contentToInsert.length > 0) {
+          // 如果嵌入在 paragraph 中，且要插入的是 block 节点（如 heading），
+          // 需要替换整个 paragraph，而不是只替换 obsidianEmbed
+          const paragraphIndex = path.findIndex((n) => n === parent);
+          if (paragraphIndex !== -1 && paragraphIndex > 0) {
+            const paragraphParent = path[paragraphIndex - 1];
+            const paragraphParentArray = paragraphParent.children?.includes(
+              parent
+            )
+              ? "children"
+              : paragraphParent.content?.includes(parent)
+              ? "content"
+              : null;
+            const paragraphParentArrayValue =
+              paragraphParentArray === "children"
+                ? paragraphParent.children
+                : paragraphParent.content;
+            if (paragraphParentArrayValue) {
+              const paragraphIdx = paragraphParentArrayValue.indexOf(parent);
+              if (paragraphIdx !== -1) {
+                // 替换整个 paragraph 为新的内容
+                paragraphParentArrayValue.splice(
+                  paragraphIdx,
+                  1,
+                  ...contentToInsert
+                );
+                return true;
               }
             }
-            if (node.children) {
-              adjustHeadingInMdast(node.children);
-            }
           }
         }
-        adjustHeadingInMdast(embeddedTree.children);
-        childrenToInsert = embeddedTree.children;
-      } else if (childrenToInsert.length === 0 && embeddedTree.children) {
-        // 直接调整 embeddedTree 中的标题深度
-        function adjustHeadingInMdast(nodes: any[]): void {
-          for (const node of nodes) {
-            if (node.type === "heading") {
-              const currentDepth = node.depth || 1;
-              const newDepth = currentDepth + contextDepth + 1;
-              if (newDepth > 6) {
-                // 转换为列表（简化处理，这里先跳过）
-                node.depth = 6;
-              } else {
-                node.depth = newDepth;
-              }
-            }
-            if (node.children) {
-              adjustHeadingInMdast(node.children);
-            }
-          }
-        }
-        adjustHeadingInMdast(embeddedTree.children);
-        childrenToInsert = embeddedTree.children;
-      }
 
-      // 替换嵌入节点（直接在 mdast 上操作）
-      if (parent) {
-        const embedIndex = parent.children?.indexOf(embedNode);
-        if (embedIndex !== undefined && embedIndex !== -1 && parent.children) {
-          // 如果 parent 是 paragraph，需要替换整个 paragraph，而不是只替换 embedNode
-          if (parent.type === "paragraph") {
-            // paragraph 包含 embedNode，替换整个 paragraph
-            const parentIndex = tree.children?.indexOf(parent);
-            if (
-              parentIndex !== undefined &&
-              parentIndex !== -1 &&
-              tree.children &&
-              childrenToInsert.length > 0
-            ) {
-              tree.children.splice(parentIndex, 1, ...childrenToInsert);
-            }
-          } else {
-            // 其他情况，直接替换 embedNode
-            if (childrenToInsert.length > 0) {
-              parent.children.splice(embedIndex, 1, ...childrenToInsert);
-            } else {
-              parent.children.splice(embedIndex, 1);
-            }
+        if (inListItem && listItemParent) {
+          // 在列表项中，将内容添加到 list-item.children
+          if (!listItemParent.children) {
+            listItemParent.children = [];
           }
-        }
-      } else {
-        // 如果没有 parent，说明节点在根节点下
-        const embedIndex = tree.children?.indexOf(embedNode);
-        if (embedIndex !== undefined && embedIndex !== -1 && tree.children) {
-          if (childrenToInsert.length > 0) {
-            tree.children.splice(embedIndex, 1, ...childrenToInsert);
+          // 将 hierarchy 节点添加到 list-item 的 children
+          listItemParent.children.push(...contentToInsert);
+          // 移除嵌入节点
+          targetArray.splice(index, 1);
+        } else {
+          // 正常情况：替换嵌入节点为调整后的内容
+          if (contentToInsert.length > 0) {
+            targetArray.splice(index, 1, ...contentToInsert);
           } else {
-            tree.children.splice(embedIndex, 1);
+            targetArray.splice(index, 1);
           }
         }
       }
@@ -393,12 +269,7 @@ async function processEmbedNode(
 
     return true;
   } catch (error) {
-    console.error(`处理嵌入文件失败: ${filePath}`, error);
+    console.error(`Error processing embed ${filePath}:`, error);
     return false;
-  } finally {
-    // 弹出路径栈（虽然这里 newPathStack 是新数组，但为了完整性还是处理）
-    // 实际上由于我们使用的是新数组，这里不需要手动弹出
   }
 }
-
-export default remarkFreeze;

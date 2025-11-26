@@ -3,30 +3,31 @@ import { HierarchyNode } from "./types";
 /**
  * 调整 hierarchy 结构中所有 heading 节点的深度
  * @param hierarchyRoot hierarchy 根节点
- * @param contextDepth 上下文标题深度
+ * @param contextDepth 上下文 heading 的深度
  */
 export function adjustHeadingDepths(
   hierarchyRoot: HierarchyNode,
   contextDepth: number
 ): void {
-  // 在 hierarchy 结构上遍历所有 heading 节点
   function traverse(node: HierarchyNode): void {
     if (node.type === "heading") {
-      const currentDepth = node.depth || 1;
-      const newDepth = currentDepth + contextDepth + 1;
-
+      const newDepth = (node.depth || 1) + contextDepth + 1;
       if (newDepth > 6) {
-        // 需要转换为列表
+        // 将 heading 转换为 list
         convertHeadingToList(node);
       } else {
         node.depth = newDepth;
       }
     }
 
+    // 递归处理 children
     if (node.children) {
-      for (const child of node.children) {
-        traverse(child);
-      }
+      node.children.forEach(traverse);
+    }
+
+    // 递归处理 content（heading 节点的内容）
+    if (node.content) {
+      node.content.forEach(traverse);
     }
   }
 
@@ -38,17 +39,16 @@ export function adjustHeadingDepths(
  * @param headingNode heading 节点
  */
 function convertHeadingToList(headingNode: HierarchyNode): void {
-  // 获取 heading 的文本内容
+  if (headingNode.type !== "heading") {
+    return;
+  }
+
+  // 提取 heading 文本
   const headingText = extractHeadingText(headingNode);
 
-  // 保存 heading 的 children（这些是 heading 下的内容）
-  const headingChildren = headingNode.children || [];
-
-  // 创建 list-item，将标题文本作为第一个段落，后面跟着原 heading 的内容
+  // 创建 list-item
   const listItem: HierarchyNode = {
     type: "listItem",
-    spread: false,
-    checked: null,
     children: [
       {
         type: "paragraph",
@@ -59,11 +59,18 @@ function convertHeadingToList(headingNode: HierarchyNode): void {
           },
         ],
       },
-      ...headingChildren,
     ],
   };
 
-  // 创建 list，包含这个 list-item
+  // 将 heading 的 content 添加到 list-item 的 children
+  if (headingNode.content) {
+    const content = headingNode.content;
+    if (Array.isArray(content)) {
+      listItem.children = [...(listItem.children || []), ...content];
+    }
+  }
+
+  // 创建 list
   const list: HierarchyNode = {
     type: "list",
     ordered: false,
@@ -72,62 +79,35 @@ function convertHeadingToList(headingNode: HierarchyNode): void {
     children: [listItem],
   };
 
-  // 替换原 heading 节点的所有属性
+  // 替换 heading 节点为 list
   Object.keys(headingNode).forEach((key) => {
-    if (key !== "type" && key !== "children") {
-      delete (headingNode as any)[key];
+    if (key !== "type") {
+      delete headingNode[key];
     }
   });
-
-  // 设置新的类型和 children
-  headingNode.type = "list";
-  headingNode.children = list.children;
-  Object.assign(headingNode, {
-    ordered: false,
-    start: null,
-    spread: false,
-  });
+  Object.assign(headingNode, list);
 }
 
-// 块级节点类型，这些节点不应该被当作 heading 的内联内容
-const BLOCK_TYPES = new Set([
-  "paragraph",
-  "heading",
-  "list",
-  "listItem",
-  "blockquote",
-  "code",
-  "table",
-  "thematicBreak",
-  "html",
-]);
-
 /**
- * 提取 heading 节点的文本内容（只提取内联内容，不包括块级子节点）
+ * 从 heading 节点提取文本内容
  * @param headingNode heading 节点
- * @returns 文本内容
+ * @returns heading 的文本内容
  */
 function extractHeadingText(headingNode: HierarchyNode): string {
-  if (!headingNode.children) {
-    return "";
-  }
-
-  const textParts: string[] = [];
+  let text = "";
 
   function extractText(node: HierarchyNode): void {
-    if (node.type === "text") {
-      textParts.push(node.value || "");
-    } else if (!BLOCK_TYPES.has(node.type) && node.children) {
-      // 只递归处理内联节点（如 emphasis, strong, link 等）
-      for (const child of node.children) {
-        extractText(child);
-      }
+    if (node.type === "text" && node.value) {
+      text += node.value;
+    }
+    if (node.children) {
+      node.children.forEach(extractText);
     }
   }
 
-  for (const child of headingNode.children) {
-    extractText(child);
+  if (headingNode.children) {
+    headingNode.children.forEach(extractText);
   }
 
-  return textParts.join("");
+  return text || "Untitled";
 }
