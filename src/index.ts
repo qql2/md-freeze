@@ -20,12 +20,14 @@ import { adjustHeadingDepths } from "./adjust-headings";
  * Remark freeze 插件
  * 将 Obsidian 嵌入的文件内容"冻结"到当前文档中，并自动调整标题层级
  */
-export function remarkFreeze(options: FreezeOptions): Plugin {
+export const remarkFreeze: Plugin<[FreezeOptions], Root, Root> = function (
+  options: FreezeOptions
+) {
   return async function (tree: Root) {
     const pathStack: PathStack = [];
     await processTree(tree, options, pathStack);
-  } as any;
-}
+  };
+};
 
 /**
  * 处理 mdast 树
@@ -74,7 +76,7 @@ async function processTree(
     }
 
     // 2. 转换为 hierarchy 结构以进行上下文检测
-    const hierarchyTree = toHierarchy(tree);
+    const hierarchyTree = toHierarchy(JSON.parse(JSON.stringify(tree)));
 
     // 3. 处理每个嵌入节点（从后往前处理，避免索引变化问题）
     for (let i = embedNodes.length - 1; i >= 0; i--) {
@@ -276,7 +278,9 @@ async function processEmbedNode(
       const contextDepth = getContextHeadingDepth(parentHeading);
 
       // 转换为 hierarchy 结构以进行调整标题层级
-      const embeddedHierarchy = toHierarchy(embeddedTree);
+      const embeddedHierarchy = toHierarchy(
+        JSON.parse(JSON.stringify(embeddedTree))
+      );
 
       // 调整标题深度
       adjustHeadingDepths(embeddedHierarchy, contextDepth);

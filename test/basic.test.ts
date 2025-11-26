@@ -56,6 +56,10 @@ test("标题层级调整", async () => {
   const output = result.toString();
   assert(output.includes("Heading 1"), "应该包含 Heading 1");
   assert(output.includes("Content"), "应该包含 Content");
+  // 检查标题层级是否被调整了
+  // "file1.md" 的 Heading 1 应该变成 Heading 2（因为外部有一个 # Main Heading）
+  assert(output.includes("## Heading 1"), "嵌入的一级标题应该变成二级标题");
+  assert(output.includes("### Heading 2"), "嵌入的二级标题应该变成三级标题");
 });
 
 test("列表项中的嵌入", async () => {
@@ -75,6 +79,20 @@ test("列表项中的嵌入", async () => {
   // 在列表项中，标题不应该调整，内容直接添加到 list-item
   assert(output.includes("Heading"), "应该包含 Heading");
   assert(output.includes("Content"), "应该包含 Content");
+  // 检查标题没有升级，heading 没有变成 ##/###
+  assert(!output.includes("## Heading"), "列表项嵌入时标题深度不应被修改");
+  // 检查嵌入内容依然在列表项中
+  // 有两种可能输出格式，根据 remark-stringify:
+  // - "- List item\n  # Heading\n\n  Content\n"
+  // - "- List item\n\n  # Heading\n\n  Content\n"
+  // 检查缩进的 # Heading 存在
+  assert(
+    /-\s+List item[\s\S]*^[ ]{2}# Heading/m.test(output) ||
+      /-\s+List item\n\n[ ]{2}# Heading/m.test(output),
+    "嵌入的内容应该处于 list-item 缩进之下"
+  );
+  // 检查缩进的 Content 存在
+  assert(/^[ ]{2}Content/m.test(output), "嵌入内容应在列表项缩进下");
 });
 
 test("嵌套嵌入", async () => {
@@ -119,6 +137,9 @@ test("循环嵌套检测", async () => {
 
   // 应该只处理一层，第二层因为循环被跳过
   assert(output !== undefined, "应该有输出");
+  // 检查输出中不应该有两个 "file1"
+  const file1Matches = output.match(/file1\.md/g) || [];
+  assert(file1Matches.length <= 1, "循环嵌套时不应该有两个 File 1");
 });
 
 test("标题超过6级转换为列表", async () => {
@@ -135,7 +156,9 @@ test("标题超过6级转换为列表", async () => {
   const result = await processor.process(markdown);
 
   const output = result.toString();
+  console.log(JSON.stringify(output, null, 2));
   // h6 + contextDepth(6) + 1 = 13 > 6，应该转换为列表
   assert(output.includes("Heading 6"), "应该包含 Heading 6");
   assert(output.includes("Content"), "应该包含 Content");
+  assert(!output.includes("###### Heading 6"), "标题不应该超过6级");
 });
