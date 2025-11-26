@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -skipLibCheck && node esbuild.config.mjs production",
-    "pub": "npm run build & npm publish"
+    "pub": "npm run build & npm publish",
+    "test": "node --loader ts-node/esm test/basic.test.ts || npx tsx test/run-test.ts",
+    "test:simple": "npx tsx test/run-test.ts"
   },
   "author": "qql2",
   "types": "main.d.ts",
