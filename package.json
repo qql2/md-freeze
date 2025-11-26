@@ -4,13 +4,24 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-  	"dev": "node esbuild.config.mjs",
-  	"build": "tsc -skipLibCheck && node esbuild.config.mjs production",
-  	"pub": "npm run build & npm publish"
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -skipLibCheck && node esbuild.config.mjs production",
+    "pub": "npm run build & npm publish"
   },
   "author": "qql2",
   "types": "main.d.ts",
-  "devDependencies":{
+  "devDependencies": {
     "esbuild": "0.21.5"
+  },
+  "dependencies": {
+    "@qql2/remark-obsidian": "^1.0.1",
+    "hierarchy-mdast": "^1.0.1",
+    "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-to-string": "^4.0.0",
+    "remark-cli": "^12.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0"
   }
 }
