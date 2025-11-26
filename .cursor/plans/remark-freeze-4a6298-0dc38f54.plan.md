@@ -26,18 +26,18 @@ interface FreezeOptions {
 #### 2.2 主要处理流程
 
 1. **转换为 hierarchy 结构**：使用 `hierarchy-mdast.toHierarchy()` 将 mdast 转换为 hierarchy 结构
-2. **遍历 hierarchy**：在 hierarchy 结构上查找所有 `obsidianEmbed` 节点
+2. **直接遍历 hierarchy**：在 hierarchy 结构上直接遍历查找所有 `obsidianEmbed` 节点（而非先转 mdast 再遍历），这样可以直接利用 hierarchy 的父子关系查找所在的 heading 上下文
 3. **读取嵌入文件**：调用外部 `readFile` 函数获取 markdown 内容
 4. **解析嵌入内容**：使用 `remark().use(remarkObsidian).parse()` 解析
-5. **递归处理嵌套**：对解析后的 mdast 递归调用 freeze 逻辑（同样先 toHierarchy）
-6. **调整标题层级**：根据上下文调整标题深度（在 hierarchy 结构上操作）
+5. **递归处理嵌套**：对解析后的 mdast 递归调用 freeze 逻辑（同样先 toHierarchy，然后直接遍历 hierarchy）
+6. **调整标题层级**：根据上下文调整标题深度（在 hierarchy 结构上操作，通过父子关系直接查找最近的 heading 祖先节点）
 7. **替换嵌入节点**：将处理后的内容替换原嵌入节点
 8. **还原为 mdast**：使用 `hierarchy-mdast.unHierarchy()` 将 hierarchy 结构还原为 mdast
 
 #### 2.3 标题层级调整逻辑
 
-- 使用 `hierarchy-mdast` 的 `toHierarchy` 获取当前嵌入节点的上下文
-- 查找最近的祖先 heading 节点，获取其 depth
+- 在 hierarchy 结构上直接遍历时，可以通过节点的 `parent` 关系向上查找最近的祖先 heading 节点
+- 利用 hierarchy 结构的父子关系链，直接访问父节点、祖父节点等，查找最近的 heading 节点并获取其 depth
 - 调整规则：
   - 如果嵌入在 list-item 中：直接添加到 list-item.children，不调整标题
   - 否则：增加标题深度（depth + contextDepth + 1）
@@ -62,8 +62,9 @@ interface FreezeOptions {
 #### 4.1 上下文检测和处理流程
 
 - **入口**：接收 mdast，先使用 `toHierarchy()` 转换为 hierarchy 结构
-- **处理**：在 hierarchy 结构上进行所有操作（查找嵌入节点、调整标题等）
-- **上下文检测**：通过 hierarchy 结构的父子关系查找嵌入节点的父级 heading
+- **处理**：直接在 hierarchy 结构上遍历（而非转换为 mdast 后再遍历），这样可以直接利用 hierarchy 的父子关系链
+- **上下文检测**：在遍历 hierarchy 结构时，通过节点的 `parent` 属性向上查找，直接访问父节点、祖父节点等，找到最近的 heading 祖先节点
+- **优势**：直接遍历 hierarchy 结构避免了多次转换，且查找 heading 上下文更加直观和高效
 - **出口**：处理完成后使用 `unHierarchy()` 还原为 mdast
 
 #### 4.2 标题转列表
@@ -89,19 +90,20 @@ interface FreezeOptions {
 
 ## 注意事项
 
-- **关键流程**：必须遵循 `mdast -> toHierarchy -> 处理 -> unHierarchy -> mdast` 的流程
+- **关键流程**：必须遵循 `mdast -> toHierarchy -> 直接遍历 hierarchy 结构处理 -> unHierarchy -> mdast` 的流程
+- **遍历方式**：直接在 hierarchy 结构上遍历，利用其父子关系链查找 heading 上下文，而非先转换为 mdast 再遍历
 - 需要处理异步文件读取（readFile 可能是 async）
-- hierarchy-mdast 的 API 需要实际测试确认（特别是 hierarchy 结构的节点类型和访问方式）
+- hierarchy-mdast 的 API 需要实际测试确认（特别是 hierarchy 结构的节点类型、parent 属性访问方式、以及如何遍历）
 - 标题转列表的逻辑需要仔细处理内容边界
 - 确保路径栈的正确维护（push/pop 配对）
-- 递归处理嵌套嵌入时，也需要对嵌入内容的 mdast 先 toHierarchy 再处理
+- 递归处理嵌套嵌入时，也需要对嵌入内容的 mdast 先 toHierarchy，然后直接遍历 hierarchy 结构处理
 
 ### To-dos
 
 - [ ] 查看 @qql2/remark-obsidian 源码或测试，确定嵌入节点的类型和结构
 - [ ] 创建插件基础框架和类型定义（fileReader 函数签名、插件选项类型）
-- [ ] 实现嵌入节点查找逻辑（在 hierarchy 结构上遍历，而非直接使用 unist-util-visit）
-- [ ] 实现上下文标题层级检测（使用 hierarchy-mdast 的 parse 和 getBelowHeading）
+- [ ] 实现嵌入节点查找逻辑（直接在 hierarchy 结构上遍历，利用父子关系链，而非先转 mdast 再使用 unist-util-visit）
+- [ ] 实现上下文标题层级检测（在遍历 hierarchy 时，通过节点的 parent 属性向上查找最近的 heading 祖先节点）
 - [ ] 实现标题深度调整逻辑（增加 depth，处理 h6→list-item 转换）
 - [ ] 实现列表项中的嵌入处理（检测 list-item 上下文，直接添加 children）
 - [ ] 实现嵌套嵌入的递归处理
