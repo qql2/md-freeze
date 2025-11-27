@@ -455,3 +455,44 @@ test("复杂标题层级调整", async () => {
   // H3 应该变成 H5 (3 + 2 = 5)
   assertWithOutput(output.includes("##### H3"), "H3 应该变成 H5", output);
 });
+
+test("嵌入标题层级高于上下文时不调整", async () => {
+  const files: Record<string, string> = {
+    "file1.md":
+      "#### Heading 4\n\n##### Heading 5\n\n###### Heading 6\n\nContent",
+  };
+
+  const processor = remark()
+    .use(remarkObsidian)
+    .use(remarkFreeze, { readFile: createMockReadFile(files) })
+    .use(remarkStringify);
+
+  // 上下文是三级标题（深度3）
+  const markdown = "### Context H3\n\n![[file1.md]]";
+  const result = await processor.process(markdown);
+  const output = result.toString();
+
+  // 嵌入文件的标题层级（4, 5, 6）都大于上下文层级（3），所以不应该调整
+  assertWithOutput(
+    output.includes("#### Heading 4"),
+    "四级标题应该保持为四级标题（4 > 3，不调整）",
+    output
+  );
+  assertWithOutput(
+    output.includes("##### Heading 5"),
+    "五级标题应该保持为五级标题（5 > 3，不调整）",
+    output
+  );
+  assertWithOutput(
+    output.includes("###### Heading 6"),
+    "六级标题应该保持为六级标题（6 > 3，不调整）",
+    output
+  );
+  // 验证没有被调整成更高的层级
+  assertWithOutput(
+    !output.includes("####### Heading 4"),
+    "不应该出现七级标题",
+    output
+  );
+  assertWithOutput(output.includes("Content"), "应该包含 Content", output);
+});

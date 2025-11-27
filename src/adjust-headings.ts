@@ -9,14 +9,13 @@ export function adjustHeadingDepths(
   hierarchyRoot: HierarchyNode,
   contextDepth: number
 ): void {
-  function traverse(node: HierarchyNode): void {
+  function traverse(node: HierarchyNode, top = false): void {
     if (node.type === "heading") {
       const plusDepth = contextDepth;
       const currentDepth = node.depth || 1;
-      // TODO: 保持原深度
-      // if (plusDepth <= currentDepth) {
-      //   return;
-      // }
+      if (top && currentDepth > plusDepth) {
+        return;
+      }
       const newDepth = currentDepth + plusDepth;
       if (newDepth > 6) {
         // 将 heading 转换为 list
@@ -28,16 +27,16 @@ export function adjustHeadingDepths(
 
     // 递归处理 children
     if (node.children) {
-      node.children.forEach(traverse);
+      node.children.forEach((child) => traverse(child, node.type === "root"));
     }
 
     // 递归处理 content（heading 节点的内容）
     if (node.content) {
-      node.content.forEach(traverse);
+      node.content.forEach((child) => traverse(child, node.type === "root"));
     }
   }
 
-  traverse(hierarchyRoot);
+  traverse(hierarchyRoot, true);
 }
 
 /**
