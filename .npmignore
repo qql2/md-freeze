@@ -2,3 +2,5 @@ src/
 .vscode/
 tsconfig.json
 esbuild.config.mjs
+test/
+rollup.config.mjs

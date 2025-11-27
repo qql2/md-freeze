@@ -5,10 +5,10 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc -skipLibCheck && node esbuild.config.mjs production",
-    "pub": "npm run build & npm publish",
     "test": "ts-node test/basic.test.ts",
-    "test:integration": "npx tsx test/integration.test.ts"
+    "test:integration": "npx tsx test/integration.test.ts",
+    "build": "rollup -c rollup.config.mjs && node esbuild.config.mjs production",
+    "pub": "npm run build & npm publish",
   },
   "author": "qql2",
   "types": "main.d.ts",
@@ -18,7 +18,9 @@
     "esbuild": "0.21.5",
     "remark-stringify": "^11.0.0",
     "typescript": "^5.9.3",
-    "unist-util-visit": "^5.0.0"
+    "unist-util-visit": "^5.0.0",
+    "rollup": "^4.53.3",
+    "rollup-plugin-dts": "^6.3.0"
   },
   "dependencies": {
     "@qql2/remark-obsidian": "^1.0.3",
