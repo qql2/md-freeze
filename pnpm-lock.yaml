@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@qql2/remark-obsidian':
-        specifier: ^1.0.1
+        specifier: ^1.0.2
         version: 1.0.2
       hierarchy-mdast:
-        specifier: ^1.0.1
-        version: 1.0.1
+        specifier: ^1.0.6
+        version: 1.0.6
       mdast-util-from-markdown:
         specifier: ^2.0.2
         version: 2.0.2
@@ -571,8 +571,8 @@ packages:
     resolution: {integrity: sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==}
     hasBin: true
 
-  hierarchy-mdast@1.0.1:
-    resolution: {integrity: sha512-p95GF43NCdb+P6gfyYmR7cEE0fmGxCMldD4etQ0h/U2/QpQQI9claIfV6G8vsMwK7PioW1D4VTNKu7Rd0HG0Kw==}
+  hierarchy-mdast@1.0.6:
+    resolution: {integrity: sha512-l8LgmWMx2+I9xeo1RWDYMEMg2GVP7iznG3zg/ZC8YZfOfPXMY/Uam0yPdIcgCY9UA/rh2jt+Lrva85jK+mCXCA==}
 
   hosted-git-info@7.0.2:
     resolution: {integrity: sha512-puUZAUKT5m8Zzvs72XWy3HtvVbTWljRE66cP60bxJzAqf2DgICo7lYTY2IHUmLnNpjYvw5bvmoHvPc0QO2a62w==}
@@ -1514,7 +1514,7 @@ snapshots:
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
 
-  hierarchy-mdast@1.0.1:
+  hierarchy-mdast@1.0.6:
     dependencies:
       esbuild: 0.23.1
       lodash: 4.17.21

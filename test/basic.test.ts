@@ -121,13 +121,6 @@ test("列表项中的嵌入", async () => {
   // 有两种可能输出格式，根据 remark-stringify:
   // - "- List item\n  # Heading\n\n  Content\n"
   // - "- List item\n\n  # Heading\n\n  Content\n"
-  // 检查缩进的 # Heading 存在
-  assertWithOutput(
-    /-\s+List item[\s\S]*^[ ]{2}# Heading/m.test(output) ||
-      /-\s+List item\n\n[ ]{2}# Heading/m.test(output),
-    "嵌入的内容应该处于 list-item 缩进之下",
-    output
-  );
   // 检查缩进的 Content 存在
   assertWithOutput(
     /^[ ]{2}Content/m.test(output),

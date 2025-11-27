@@ -291,8 +291,18 @@ async function processEmbedNode(
           if (!listItemParent.children) {
             listItemParent.children = [];
           }
-          // 将 hierarchy 节点添加到 list-item 的 children
-          listItemParent.children.push(...contentToInsert);
+          // 展开 hierarchy 节点：对于 heading 节点，需要展开其 content
+          const expandedContent: HierarchyNode[] = [];
+          for (const node of contentToInsert) {
+            // 先添加节点本身
+            expandedContent.push(node);
+            // 如果是 heading 节点，展开其 content
+            if (node.type === "heading" && node.content) {
+              expandedContent.push(...node.content);
+            }
+          }
+          // 将展开后的内容添加到 list-item 的 children
+          listItemParent.children.push(...expandedContent);
           // 移除嵌入节点
           targetArray.splice(index, 1);
         } else {
@@ -309,6 +319,45 @@ async function processEmbedNode(
     return true;
   } catch (error) {
     console.error(`Error processing embed ${filePath}:`, error);
+    // 文件读取失败时，移除嵌入节点
+    if (parent && parentArray && index !== -1) {
+      const targetArray =
+        parentArray === "children" ? parent.children : parent.content;
+      if (targetArray) {
+        // 检查父节点是否是 paragraph，如果是，需要移除整个 paragraph
+        const isInParagraph = parent.type === "paragraph";
+
+        if (isInParagraph) {
+          // 如果嵌入在 paragraph 中，移除整个 paragraph
+          const paragraphIndex = path.findIndex((n) => n === parent);
+          if (paragraphIndex !== -1 && paragraphIndex > 0) {
+            const paragraphParent = path[paragraphIndex - 1];
+            const paragraphParentArray = paragraphParent.children?.includes(
+              parent
+            )
+              ? "children"
+              : paragraphParent.content?.includes(parent)
+              ? "content"
+              : null;
+            const paragraphParentArrayValue =
+              paragraphParentArray === "children"
+                ? paragraphParent.children
+                : paragraphParent.content;
+            if (paragraphParentArrayValue) {
+              const paragraphIdx = paragraphParentArrayValue.indexOf(parent);
+              if (paragraphIdx !== -1) {
+                paragraphParentArrayValue.splice(paragraphIdx, 1);
+                return true;
+              }
+            }
+          }
+        } else {
+          // 正常情况：移除嵌入节点
+          targetArray.splice(index, 1);
+          return true;
+        }
+      }
+    }
     return false;
   }
 }

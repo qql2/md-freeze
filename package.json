@@ -19,8 +19,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@qql2/remark-obsidian": "^1.0.1",
-    "hierarchy-mdast": "^1.0.1",
+    "@qql2/remark-obsidian": "^1.0.2",
+    "hierarchy-mdast": "^1.0.6",
     "mdast-util-from-markdown": "^2.0.2",
     "mdast-util-to-string": "^4.0.0",
     "remark": "^15.0.1",
