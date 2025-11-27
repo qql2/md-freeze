@@ -243,7 +243,7 @@ This is the main document.
   console.log(`输出行数: ${output.split("\n").length} 行`);
 
   // ========== 写入结果文件 ==========
-  const outputDir = join(__dirname, "..");
+  const outputDir = join(__dirname, "./");
   const outputFile = join(outputDir, "integration-test-result.md");
 
   // 构建完整的结果文档，包含输入和输出对比

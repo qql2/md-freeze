@@ -1,6 +1,3 @@
-import { Plugin } from "unified";
-import { Root } from "mdast";
-
 /**
  * Obsidian 嵌入节点类型
  * 由 @qql2/remark-obsidian 解析生成

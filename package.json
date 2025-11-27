@@ -1,14 +1,14 @@
 {
-  "name": "",
+  "name": "remark-freeze",
   "version": "1.0.0",
-  "description": "",
+  "description": "A remark plugin to freeze Obsidian embeds and adjust heading depths",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "test": "ts-node test/basic.test.ts",
     "test:integration": "npx tsx test/integration.test.ts",
     "build": "rollup -c rollup.config.mjs && node esbuild.config.mjs production",
-    "pub": "npm run build & npm publish",
+    "pub": "npm run build & npm publish"
   },
   "author": "qql2",
   "types": "main.d.ts",
