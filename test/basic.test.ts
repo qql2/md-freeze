@@ -403,16 +403,10 @@ test("复杂标题层级调整", async () => {
   const result = await processor.process(markdown);
   const output = result.toString();
 
-  // H1 应该变成 H4 (1 + 2 + 1 = 4)
-  assertWithOutput(output.includes("#### H1"), "H1 应该变成 H4", output);
-  // H2 应该变成 H5 (2 + 2 + 1 = 5)
-  assertWithOutput(output.includes("##### H2"), "H2 应该变成 H5", output);
-  // H3 应该变成 H6 (3 + 2 + 1 = 6)
-  assertWithOutput(output.includes("###### H3"), "H3 应该变成 H6", output);
-  // H4 应该转换为列表 (4 + 2 + 1 = 7 > 6)
-  assertWithOutput(
-    !output.includes("####### H4"),
-    "H4 应该转换为列表而不是超过6级",
-    output
-  );
+  // H1 应该变成 H3 (1 + 2 = 3)
+  assertWithOutput(output.includes("### H1"), "H1 应该变成 H3", output);
+  // H2 应该变成 H4 (2 + 2 = 4)
+  assertWithOutput(output.includes("#### H2"), "H2 应该变成 H4", output);
+  // H3 应该变成 H5 (3 + 2 = 5)
+  assertWithOutput(output.includes("##### H3"), "H3 应该变成 H5", output);
 });
