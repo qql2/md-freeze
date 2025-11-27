@@ -129,6 +129,51 @@ test("列表项中的嵌入", async () => {
   );
 });
 
+test("列表项中的标题不调整层级 - 有上下文标题", async () => {
+  const files: Record<string, string> = {
+    "file1.md": "# Heading\n\n## Sub Heading\n\nContent",
+  };
+
+  const processor = remark()
+    .use(remarkObsidian)
+    .use(remarkFreeze, { readFile: createMockReadFile(files) })
+    .use(remarkStringify);
+
+  // 外部有一个二级标题作为上下文
+  const markdown = "## Context Heading\n\n- List item\n  ![[file1.md]]";
+  const result = await processor.process(markdown);
+
+  const output = result.toString();
+
+  // 验证标题没有被调整：
+  // - 如果调整了，Heading 应该变成 ### Heading (1 + 2 = 3)
+  // - 如果没调整，Heading 应该保持 # Heading
+  assertWithOutput(
+    output.includes("# Heading"),
+    "列表项中的一级标题应该保持为一级标题",
+    output
+  );
+  assertWithOutput(
+    !output.includes("### Heading"),
+    "列表项中的一级标题不应该被调整为三级标题",
+    output
+  );
+
+  // 验证二级标题也没有被调整
+  assertWithOutput(
+    output.includes("## Sub Heading"),
+    "列表项中的二级标题应该保持为二级标题",
+    output
+  );
+  assertWithOutput(
+    !output.includes("#### Sub Heading"),
+    "列表项中的二级标题不应该被调整为四级标题",
+    output
+  );
+
+  assertWithOutput(output.includes("Content"), "应该包含 Content", output);
+});
+
 test("嵌套嵌入", async () => {
   const files: Record<string, string> = {
     "file1.md": "# File 1\n\n![[file2.md]]",
