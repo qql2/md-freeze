@@ -154,49 +154,49 @@ This is the main document.
 
 ## Part 1
 
-#### Chapter 1: Introduction
+### Chapter 1: Introduction
 
 This is the introduction chapter.
 
-##### Section 1.1
+#### Section 1.1
 
 Content of section 1.1.
 
-* Details
+##### Details
 
 Detailed information here.
 
-* Sub-details
+###### Sub-details
 
 More details.
 
 * Extra Information
 
-Additional information.
+  Additional information.
 
-##### Section 1.2
+#### Section 1.2
 
 More content here.
 
 ## Part 2
 
-#### Chapter 2: Advanced Topics
+### Chapter 2: Advanced Topics
 
-##### Section 2.1
+#### Section 2.1
 
 Advanced content.
 
-* Nested Content
+##### Nested Content
 
 This is nested content.
 
-* Nested Section
+###### Nested Section
 
 Content here.
 
-##### Section 2.2
+#### Section 2.2
 
-* #### List Embed Heading
+* ### List Embed Heading
   Content in list embed.
 * List item 2
 
@@ -204,18 +204,18 @@ Content here.
 
 ## Part 4
 
-#### Circular A
+### Circular A
 
-###### Circular B
+#### Circular B
 
 
 ---
 
 ## 测试统计
 
-- **输出长度**: 619 字符
+- **输出长度**: 629 字符
 - **输出行数**: 60 行
-- **测试时间**: 2025-11-27T09:07:38.301Z
+- **测试时间**: 2025-11-27T11:05:12.265Z
 
 ## 验证结果
 

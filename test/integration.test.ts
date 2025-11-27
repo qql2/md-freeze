@@ -85,7 +85,7 @@ Content here.
 Additional information.
 `,
 
-    // 列表项中嵌入的文件
+    // 列表项中嵌入的文件，TODO：列表项中的标题不需要调整层级
     "list-embed.md": `# List Embed Heading
 
 Content in list embed.
@@ -155,7 +155,6 @@ This is the main document.
   );
 
   // 3. 验证标题层级调整（Chapter 1 的 # 应该变成 ##，因为外部有 ## Part 1）
-  // Chapter 1 的 # 应该变成 ### (1 + 2 + 1 = 4，但实际应该是 ### 因为 Part 1 是 ##)
   // 实际上，Chapter 1 的 # 应该变成 ### (1 + 2 = 3)
   assert(
     output.includes("### Chapter 1: Introduction"),

@@ -11,7 +11,13 @@ export function adjustHeadingDepths(
 ): void {
   function traverse(node: HierarchyNode): void {
     if (node.type === "heading") {
-      const newDepth = (node.depth || 1) + contextDepth + 1;
+      const plusDepth = contextDepth;
+      const currentDepth = node.depth || 1;
+      // TODO: 保持原深度
+      // if (plusDepth <= currentDepth) {
+      //   return;
+      // }
+      const newDepth = currentDepth + plusDepth;
       if (newDepth > 6) {
         // 将 heading 转换为 list
         convertHeadingToList(node);
