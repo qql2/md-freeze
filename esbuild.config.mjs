@@ -12,7 +12,7 @@ const context = await esbuild.context({
   minify: prod ? true : false,
   treeShaking: true,
   format: "cjs",
-  platform: "browser",
+  platform: "node",
   logLevel: "info",
 });
 
