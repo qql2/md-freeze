@@ -1,7 +1,7 @@
 import { remark } from "remark";
 import { remarkObsidian } from "@qql2/remark-obsidian";
 import remarkStringify from "remark-stringify";
-import { remarkFreeze } from "../src/index";
+import { remarkFreeze } from "../main.js";
 import { ObsidianEmbedNode } from "../src/types";
 import { test } from "node:test";
 import assert from "node:assert";

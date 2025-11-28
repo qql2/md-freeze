@@ -1,6 +1,6 @@
 {
   "name": "remark-freeze",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A remark plugin to freeze Obsidian embeds and adjust heading depths",
   "main": "main.js",
   "scripts": {
@@ -22,8 +22,10 @@
     "rollup": "^4.53.3",
     "rollup-plugin-dts": "^6.3.0"
   },
+  "peerDependencies": {
+    "@qql2/remark-obsidian": "^1.0.3"
+  },
   "dependencies": {
-    "@qql2/remark-obsidian": "^1.0.3",
     "hierarchy-mdast": "^1.0.6",
     "remark": "^15.0.1",
     "unified": "^11.0.5"
